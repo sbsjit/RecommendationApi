@@ -1,0 +1,112 @@
+{
+    "data": [
+        {
+            "id": 1,
+            "name": "kathmandu",
+            "category": "city world-heritage honeymoon temples" ,
+            "country": "nepal"
+        },
+        {
+            "id": 2,
+            "name": "Pokhara",
+            "category": "city lake mountain-view honeymoon tour boating",
+            "country": "nepal"
+        },
+        {
+            "id": 3,
+            "name": "Butwal",
+            "category": "city industrial",
+            "country": "nepal"
+        },
+        {
+            "id": 4,
+            "name": "Chitwan",
+            "category": "city adventure tour national-park world-heritage",
+            "country": "nepal"
+        }
+        {
+            "id": 5,
+            "name": "Biratnagar",
+            "category": "city industrial",
+            "country": "nepal"
+        },
+        {
+            "id": 6,
+            "name": "Manang",
+            "category": "mountain-view trek tour bike-ride",
+            "country": "nepal"
+        },
+        {
+            "id": 7,
+            "name": "Mustang",
+            "category": "mountain-view trek tour bike-ride honeymoon temples",
+            "country": "nepal"
+        },
+        {
+            "id": 8,
+            "name": "Rolpa",
+            "category": "remote-area village home-stay",
+            "country": "nepal"
+        }
+        {
+            "id": 9,
+            "name": "Dolpa",
+            "category": "remote-area village home-stay",
+            "country": "nepal"
+        },
+        {
+            "id": 10,
+            "name": "ABC",
+            "category": "mountain-view trek base-camp",
+            "country": "nepal"
+        },
+        {
+            "id": 11,
+            "name": "Illam",
+            "category": "city lake tea-garden",
+            "country": "nepal"
+        },
+        {
+            "id": 12,
+            "name": "Jhapa",
+            "category": "city tea-garden",
+            "country": "nepal"
+        }
+        {
+            "id": 13,
+            "name": "Okhaldhunga",
+            "category": "remote-area village trek",
+            "country": "nepal"
+        },
+        {
+            "id": 14,
+            "name": "Nagarkot",
+            "category": "honeymoon hill-station",
+            "country": "nepal"
+        },
+        {
+            "id": 15,
+            "name": "Dhulikhel",
+            "category": "honeymoon",
+            "country": "nepal"
+        },
+        {
+            "id": 16,
+            "name": "Sukute",
+            "category": "adventure beach",
+            "country": "nepal"
+        }
+        {
+            "id": 17,
+            "name": "Markhu",
+            "category": "lake honeymoon boating",
+            "country": "nepal"
+        },
+        {
+            "id": 18,
+            "name": "Baglung",
+            "category": "city temples",
+            "country": "nepal"
+        }
+    ]
+}

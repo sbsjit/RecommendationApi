@@ -1,0 +1,208 @@
+from flask import Flask, request, jsonify, make_response
+from flask_sqlalchemy import SQLAlchemy 
+# to hash the password inserted
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_marshmallow import Marshmallow 
+import os
+# json web token
+import jwt
+# Helps in generating random public id/ token
+import uuid
+# For the token expiration
+import datetime
+from functools import wraps
+# importing recommendation.py
+from recommendation import *
+
+# Init app
+app = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+# Secret key is used for encoding of the token
+app.config['SECRET_KEY'] = 'thisissecret'
+# Database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'api.sqlite')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Init db
+db = SQLAlchemy(app)
+# Init ma
+ma = Marshmallow(app)
+
+r = Recommender()
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(50), unique=True)
+    name = db.Column(db.String(50))
+    password = db.Column(db.String(80))
+    admin = db.Column(db.Boolean)
+
+class Destination(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50))
+
+# class PassedDestination(db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.String(50))
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # kwargs -->> keyword arguments 
+        token = None
+        # checking if there is a header called x-access-token
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
+        if not token:
+            return jsonify({'message' : 'Token is missing!'}), 401
+        try: 
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+            current_user = User.query.filter_by(public_id=data['public_id']).first()
+        except:
+            return jsonify({'message' : 'Token is invalid!'}), 401
+        return f(current_user, *args, **kwargs)
+    return decorated
+
+# ----------------------------------------------USER------------------------------------------#
+@app.route('/user', methods=['POST'])
+@token_required
+def create_user(current_user):
+    if not current_user.admin:
+        return jsonify({'message' : 'Cannot perform that function!'})
+
+    data = request.get_json()
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+    new_user = User(public_id=str(uuid.uuid4()), name=data['name'], password=hashed_password, admin=False)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'message' : 'New user created!'})
+
+@app.route('/user', methods=['GET'])
+@token_required
+def get_all_users(current_user):
+    if not current_user.admin:
+        return jsonify({'message' : 'Cannot perform that function!'})
+    users = User.query.all()
+    output = [] #Creating a new list for o/p since we can't get the sqlalchemy query results directly in json
+    for user in users:
+        user_data = {}
+        user_data['public_id'] = user.public_id #RHS is the result from the database
+        user_data['name'] = user.name
+        user_data['password'] = user.password
+        user_data['admin'] = user.admin
+        output.append(user_data)
+    return jsonify({'users' : output})
+
+@app.route('/user/<public_id>', methods=['GET'])
+@token_required
+def get_one_user(current_user, public_id):
+    if not current_user.admin:
+        return jsonify({'message' : 'Cannot perform that function!'})
+    user = User.query.filter_by(public_id=public_id).first()
+    if not user:
+        return jsonify({'message' : 'No user found!'})
+    user_data = {}
+    user_data['public_id'] = user.public_id
+    user_data['name'] = user.name
+    user_data['password'] = user.password
+    user_data['admin'] = user.admin
+    return jsonify({'user' : user_data})
+
+@app.route('/user/<public_id>', methods=['PUT'])
+@token_required
+def promote_user(current_user, public_id):
+    if not current_user.admin:
+        return jsonify({'message' : 'Cannot perform that function!'})
+
+    user = User.query.filter_by(public_id=public_id).first()
+    if not user:
+        return jsonify({'message' : 'No user found!'})
+    user.admin = True
+    db.session.commit()
+    return jsonify({'message' : 'The user has been promoted!'})
+
+@app.route('/user/<public_id>', methods=['DELETE'])
+@token_required
+def delete_user(current_user, public_id):
+    if not current_user.admin:
+        return jsonify({'message' : 'Cannot perform that function!'})
+
+    user = User.query.filter_by(public_id=public_id).first()
+    if not user:
+        return jsonify({'message' : 'No user found!'})
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'message' : 'The user has been deleted!'})
+# -------------------------------------------------------------------------------------------------#
+
+# This route will allow to take the login and password information for user
+# enter it using http basic authentication and in return generates a token 
+# and this token will expire some time, so we can use it in header to be constantly authenticated
+@app.route('/login')
+def login():
+    # getting the authorization information
+    auth = request.authorization
+    # if there is no authentication information for the given user return the following
+    if not auth or not auth.username or not auth.password:
+        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
+    # if there is actually an authentication information, the next thing is to get the user
+    user = User.query.filter_by(name=auth.username).first()
+    if not user:
+        return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
+    if check_password_hash(user.password, auth.password):
+        # 30mins will the token be active as mentioned in timedelta
+        token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'])
+        return jsonify({'token' : token.decode('UTF-8')})
+    return make_response('Could not verify', 401, {'WWW-Authenticate' : 'Basic realm="Login required!"'})
+# So with this only the login route will work eith HTTP basic authentication
+# And we can authenticate subsequent request to all the other routes 
+
+
+
+@app.route('/destination', methods=['POST'])
+# @token_required
+def receive_destination():
+    a = {}
+    # if not current_user.admin:
+    #     return jsonify({'message' : 'Cannot perform that function!'})
+    data = request.get_json()
+    dest = Destination(name=data['name'])
+    db.session.add(dest)
+    db.session.commit()
+    # ---------------------------------
+    results = Destination.query.all()
+    destination = results[-1]
+    dest_data = {}
+    dest_data['name'] = destination.name
+    # ---------------------------------
+    a = r.recommend(dest_data['name'])
+    response = jsonify(a)
+    response.headers.set("Content-Type", "application/json")
+    return response
+    
+
+@app.route('/destination', methods=['GET'])
+@token_required
+def get_all_destination(current_user):
+    destinations = Destination.query.all()
+    output = []
+    for destination in destinations:
+        destination_data = {}
+        destination_data['id'] = destination.id
+        destination_data['name'] = destination.name
+        output.append(destination_data)
+    return jsonify({'destination' : output})
+
+@app.route('/destination/<destination_id>', methods=['DELETE'])
+@token_required
+def delete_destination(current_user, destination_id):
+    destination = Destination.query.filter_by(id=destination_id).first()
+    if not destination:
+        return jsonify({'message' : 'No Destination found!'})
+    db.session.delete(destination)
+    db.session.commit()
+    return jsonify({'message' : 'Destination item deleted!'})
+
+if __name__ == '__main__':
+    app.run(host='192.168.137.73',port=80)
